@@ -1,69 +1,96 @@
 use either::*;
+use std::fmt;
 use std::io;
-use std::io::Read;
-use std::io::Write;
+use std::io::{Read, Write};
+
+// custom formatted error string from the eval function
+// as eval implements a language so it has it's own
+// stacktrace printing capabilities.
+// This is also why I use Either<String, String> over Result<String, MyCustomLanguage::Error>
+type EvalError = String;
+
+enum EvaluationResult {
+    Output(Either<String, EvalError>),
+    ReplInputMode(SupportedReplInputMode),
+    ReplRunning(bool),
+}
 
 enum SupportedReplInputMode {
     SingleLine,
     MultiLine,
 }
 
-enum EvaluationResult {
-    Output(Either<String, String>),
-    ReplInputMode(SupportedReplInputMode),
-    ReplRunning(bool),
+#[derive(Debug)]
+enum ReplError {
+    IO(io::Error),
 }
 
-fn main() {
+impl From<io::Error> for ReplError {
+    fn from(io_error: io::Error) -> ReplError {
+        ReplError::IO(io_error)
+    }
+}
+
+impl fmt::Display for ReplError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ReplError::IO(io_error) => write!(f, "{}", io_error),
+        }
+    }
+}
+
+fn main() -> Result<(), ReplError> {
     let mut repl_input_mode = SupportedReplInputMode::SingleLine;
+
+    println!("Hi! 👋🏼\nType ? for help.");
 
     loop {
         let input = read(&repl_input_mode);
-        let output = eval(input);
+        let output = eval(input?);
 
         match output {
             EvaluationResult::Output(output) => {
                 match output {
-                    Left(o) => {
-                        print!("{}", o);
-                    }
-                    Right(err) => {
+                    Left(err) => {
                         print!("Something went wrong! {}", err);
+                    }
+                    Right(o) => {
+                        print!("{}", o);
                     }
                 }
 
-                io::stdout().flush().unwrap();
+                io::stdout().flush()?;
                 // reset input mode to single line after flushing output
                 repl_input_mode = SupportedReplInputMode::SingleLine;
             }
             EvaluationResult::ReplInputMode(r) => repl_input_mode = r,
             EvaluationResult::ReplRunning(false) => break,
-            _ => continue,
+            EvaluationResult::ReplRunning(true) => continue,
         }
     }
-    println!("Bye 👋🏼!")
+    println!("Bye 👋🏼!");
+
+    Ok(())
 }
 
-fn read(repl_input_mode: &SupportedReplInputMode) -> String {
+fn read(repl_input_mode: &SupportedReplInputMode) -> Result<String, ReplError> {
     let mut input: String = String::new();
 
     match repl_input_mode {
         SupportedReplInputMode::MultiLine => {
+            println!("Press enter followed ctrl + d to mark multiline input as done");
             print!("");
-            io::stdout().flush().unwrap();
-            io::stdin()
-                .read_to_string(&mut input)
-                .expect("Failed to read input");
-            input
+            io::stdout().flush()?;
+
+            io::stdin().read_to_string(&mut input)?;
+            Ok(input)
         }
         SupportedReplInputMode::SingleLine => {
             print!("> ");
-            io::stdout().flush().unwrap();
-            // read
-            io::stdin()
-                .read_line(&mut input)
-                .expect("Failed to read line");
-            input
+            io::stdout().flush()?;
+
+            io::stdin().read_line(&mut input)?;
+            Ok(input)
         }
     }
 }
@@ -73,7 +100,10 @@ fn eval(input: String) -> EvaluationResult {
 
     match input {
         ".m" => EvaluationResult::ReplInputMode(SupportedReplInputMode::MultiLine),
-        ".exit" => EvaluationResult::ReplRunning(false),
-        _ => EvaluationResult::Output(Left(format!("{}\n", input))),
+        ".e" => EvaluationResult::ReplRunning(false),
+        "?" => EvaluationResult::Output(Right(
+            "Commands:\n\t.m -> enable multiline mode\n\t.e -> exit repl\n".to_string(),
+        )),
+        _ => EvaluationResult::Output(Right(format!("{}\n", input))),
     }
 }
