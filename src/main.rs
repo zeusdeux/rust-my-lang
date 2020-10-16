@@ -52,15 +52,14 @@ fn main() -> Result<(), ReplError> {
         match output {
             EvaluationResult::Output(output) => {
                 match output {
-                    Left(err) => {
-                        print!("Something went wrong! {}", err);
+                    Right(err) => {
+                        println!("Something went wrong! {}", err);
                     }
-                    Right(o) => {
-                        print!("{}", o);
+                    Left(o) => {
+                        println!("{}", o);
                     }
                 }
 
-                io::stdout().flush()?;
                 // reset input mode to single line after flushing output
                 repl_input_mode = SupportedReplInputMode::SingleLine;
             }
@@ -107,6 +106,21 @@ fn eval(input: String) -> EvaluationResult {
         "?" => EvaluationResult::Output(Right(
             "Commands:\n\t.m -> enable multiline mode\n\t.e -> exit repl\n".to_string(),
         )),
-        _ => EvaluationResult::Output(Right(format!("{}\n", input))),
+        s => match tokenize(s.to_string()) {
+            Left(tokens) => EvaluationResult::Output(Left(String::from_utf8(tokens).unwrap())),
+            Right(e) => EvaluationResult::Output(Right(e)),
+        },
     }
+}
+
+type Token = u8;
+fn tokenize(input: String) -> Either<Vec<Token>, EvalError> {
+    let tokens = Vec::from(input);
+    // let tokens2 = tokens.clone();
+
+    // for t in tokens2 {
+    //     println!("t is {}", t);
+    // }
+
+    Left(tokens)
 }
