@@ -107,20 +107,86 @@ fn eval(input: String) -> EvaluationResult {
             "Commands:\n\t.m -> enable multiline mode\n\t.e -> exit repl\n".to_string(),
         )),
         s => match tokenize(s.to_string()) {
-            Left(tokens) => EvaluationResult::Output(Left(String::from_utf8(tokens).unwrap())),
+            Left(tokens) => {
+                EvaluationResult::Output(Left(tokens.iter().map(|t| t.to_string()).collect()))
+            }
             Right(e) => EvaluationResult::Output(Right(e)),
         },
     }
 }
 
-type Token = u8;
-fn tokenize(input: String) -> Either<Vec<Token>, EvalError> {
-    let tokens = Vec::from(input);
-    // let tokens2 = tokens.clone();
+#[derive(Debug)]
+enum TokenClass {
+    Number,
+    WhiteSpace,
+    Alphabet,
+    UnknownChar,
+}
 
-    // for t in tokens2 {
-    //     println!("t is {}", t);
-    // }
+impl fmt::Display for TokenClass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TokenClass::Number => write!(f, "Number"),
+            TokenClass::WhiteSpace => write!(f, "WhiteSpace"),
+            TokenClass::Alphabet => write!(f, "Alphabet"),
+            TokenClass::UnknownChar => write!(f, "UnknownChar"),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Token {
+    class: TokenClass,
+    value: String, // TODO: this could maybe be the parsed value of the given TokenClass? idk yet
+                   // TODO: track which line, column start and column end of token
+}
+
+impl Token {
+    fn new(class: TokenClass, val: String) -> Token {
+        Token { class, value: val }
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {}) ", self.class, self.value)
+    }
+}
+
+fn tokenize(input: String) -> Either<Vec<Token>, EvalError> {
+    let input_as_vec = Vec::from(input);
+    let mut tokens: Vec<Token> = Vec::new();
+
+    // TODO: Actually tokenize full numbers, strings, etc instead of each character
+    for t in input_as_vec {
+        if !t.is_ascii() {
+            return Right(format!(
+                "Input {} (code: {}) is not ascii",
+                String::from_utf8(vec![t]).unwrap(),
+                t
+            ));
+        } else if t.is_ascii_whitespace() {
+            tokens.push(Token::new(
+                TokenClass::WhiteSpace,
+                String::from_utf8(vec![t]).unwrap(),
+            ))
+        } else if t.is_ascii_digit() {
+            tokens.push(Token::new(
+                TokenClass::Number,
+                String::from_utf8(vec![t]).unwrap(),
+            ))
+        } else if t.is_ascii_alphabetic() {
+            tokens.push(Token::new(
+                TokenClass::Alphabet,
+                String::from_utf8(vec![t]).unwrap(),
+            ))
+        } else {
+            tokens.push(Token::new(
+                TokenClass::UnknownChar,
+                String::from_utf8(vec![t]).unwrap(),
+            ))
+        }
+    }
 
     Left(tokens)
 }
