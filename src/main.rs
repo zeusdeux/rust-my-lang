@@ -98,6 +98,7 @@ fn read(repl_input_mode: &SupportedReplInputMode) -> Result<String, ReplError> {
 }
 
 fn eval(input: String) -> EvaluationResult {
+    // TODO: do not modify user input
     let input = input.trim();
 
     match input {
@@ -118,8 +119,9 @@ fn eval(input: String) -> EvaluationResult {
 #[derive(Debug)]
 enum TokenClass {
     Number,
-    WhiteSpace,
     Alphabet,
+    NewLine,
+    WhiteSpace,
     UnknownChar,
 }
 
@@ -127,8 +129,9 @@ impl fmt::Display for TokenClass {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TokenClass::Number => write!(f, "Number"),
-            TokenClass::WhiteSpace => write!(f, "WhiteSpace"),
             TokenClass::Alphabet => write!(f, "Alphabet"),
+            TokenClass::NewLine => write!(f, "NewLine"),
+            TokenClass::WhiteSpace => write!(f, "WhiteSpace"),
             TokenClass::UnknownChar => write!(f, "UnknownChar"),
         }
     }
@@ -165,11 +168,13 @@ fn tokenize(input: String) -> Either<Vec<Token>, EvalError> {
                 String::from_utf8(vec![t]).unwrap(),
                 t
             ));
-        } else if t.is_ascii_whitespace() {
+        } else if t == 32 {
             tokens.push(Token::new(
                 TokenClass::WhiteSpace,
-                String::from_utf8(vec![t]).unwrap(),
+                format!("'{}'", String::from_utf8(vec![t]).unwrap()),
             ))
+        } else if t == 10 {
+            tokens.push(Token::new(TokenClass::NewLine, "'\\n'".to_string()))
         } else if t.is_ascii_digit() {
             tokens.push(Token::new(
                 TokenClass::Number,
