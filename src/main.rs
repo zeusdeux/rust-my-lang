@@ -6,7 +6,8 @@ use std::io::{Read, Write};
 // custom formatted error string from the eval function
 // as eval implements a language so it has it's own
 // stacktrace printing capabilities.
-// This is also why I use Either<String, String> over Result<String, MyCustomLanguage::Error>
+// This is also why I use Either<String, String> over
+// Result<String, MyCustomLanguage::Error>
 type EvalError = String;
 
 enum EvaluationResult {
@@ -40,7 +41,7 @@ impl fmt::Display for ReplError {
 }
 
 fn main() -> Result<(), ReplError> {
-    let mut repl_input_mode = SupportedReplInputMode::SingleLine;
+    let mut repl_input_mode: SupportedReplInputMode = SupportedReplInputMode::SingleLine;
 
     println!("Hi! 👋🏼\nType ? for help.");
 
@@ -74,22 +75,24 @@ fn main() -> Result<(), ReplError> {
 }
 
 fn read(repl_input_mode: &SupportedReplInputMode) -> Result<String, ReplError> {
-    let mut input: String = String::new();
+    let mut input = String::new();
+    let mut stdout = io::stdout();
+    let mut stdin = io::stdin();
 
     match repl_input_mode {
         SupportedReplInputMode::MultiLine => {
             println!("Press enter followed ctrl + d to mark multiline input as done");
             print!("");
-            io::stdout().flush()?;
+            stdout.flush()?;
 
-            io::stdin().read_to_string(&mut input)?;
+            stdin.read_to_string(&mut input)?;
             Ok(input)
         }
         SupportedReplInputMode::SingleLine => {
             print!("> ");
-            io::stdout().flush()?;
+            stdout.flush()?;
 
-            io::stdin().read_line(&mut input)?;
+            stdin.read_line(&mut input)?;
             Ok(input)
         }
     }
