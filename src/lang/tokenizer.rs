@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 enum TokenClass {
-    Integer,
+    Number,
     Alphabet,
     NewLine,
     WhiteSpace,
@@ -12,7 +12,7 @@ enum TokenClass {
 impl fmt::Display for TokenClass {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TokenClass::Integer => write!(f, "Integer"),
+            TokenClass::Number => write!(f, "Number"),
             TokenClass::Alphabet => write!(f, "Alphabet"),
             TokenClass::NewLine => write!(f, "NewLine"),
             TokenClass::WhiteSpace => write!(f, "WhiteSpace"),
@@ -24,16 +24,17 @@ impl fmt::Display for TokenClass {
 #[derive(Debug)]
 pub struct Token {
     class: TokenClass,
-    value: String, // TODO: this could maybe be the parsed value of the given TokenClass? idk yet
-    line: u32,
-    col: u32,
+    value: char, // char as it can be utf-8 encoded even though we only support ascii
+    line: usize,
+    col: usize,
 }
 
 impl Token {
-    fn new(class: TokenClass, val: String, line: u32, col: u32) -> Token {
+    fn new(class: TokenClass, val: char, line: usize, col: usize) -> Token {
         Token {
             class,
             value: val,
+            // value: char::from(val),
             line,
             col,
         }
@@ -45,58 +46,60 @@ impl fmt::Display for Token {
         write!(
             f,
             "({}, '{}', line: {}, column: {}) ",
-            self.class, self.value, self.line, self.col
+            self.class,
+            self.value.escape_default(),
+            self.line,
+            self.col
         )
     }
 }
 
 pub fn tokenize(input: &str) -> super::Result<Vec<Token>> {
-    let input_as_vec = Vec::from(input);
     let mut tokens: Vec<Token> = Vec::new();
-    let mut line: u32 = 1;
-    let mut col: u32 = 1;
+    let mut line: usize = 1;
+    let mut col: usize = 1;
+    let mut has_error = false;
+    let mut error_token: Token = Token::new(TokenClass::UnknownChar, ' ', line, col);
 
-    // TODO: Actually tokenize full numbers, strings, etc instead of each character
-    for t in input_as_vec.into_iter() {
-        match t {
-            10 => {
-                let token = Token::new(TokenClass::NewLine, "\\n".to_string(), line, col);
-                line = line + 1; // increment line since we found \n
+    // we iterate over unicode scalar values but only support ascii
+    // we do this as we want to print the unicode somewhat correct on error
+    for c in input.chars() {
+        match c {
+            '\n' => {
+                if has_error {
+                    let error_message: String = format!(
+                        "Input {} is not ascii\n{}\n",
+                        error_token.value,
+                        tokens
+                            .into_iter()
+                            .filter(|t| t.line == error_token.line)
+                            .map(|t| t.value)
+                            .collect::<String>(),
+                    );
+                    return Err(super::Error::new(
+                        super::ErrorKind::Tokenizer,
+                        error_token.line,
+                        error_token.col,
+                        error_message,
+                    ));
+                }
+
+                let token = Token::new(TokenClass::NewLine, c, line, col);
+                line += 1; // increment line since we found \n
                 col = 0; // reset column to 0 instead of 1 as it is incremented at the end of this loop
                 tokens.push(token)
             }
-            32 => tokens.push(Token::new(
-                TokenClass::WhiteSpace,
-                String::from(char::from(t)),
-                line,
-                col,
-            )),
-            48..=57 => tokens.push(Token::new(
-                TokenClass::Integer,
-                String::from(char::from(t)),
-                line,
-                col,
-            )),
-            65..=90 | 97..=122 => tokens.push(Token::new(
-                TokenClass::Alphabet,
-                String::from(char::from(t)),
-                line,
-                col,
-            )),
+            '\t' | '\x0C' | '\r' | ' ' => {
+                tokens.push(Token::new(TokenClass::WhiteSpace, c, line, col))
+            }
+            '0'..='9' => tokens.push(Token::new(TokenClass::Number, c, line, col)),
+            'A'..='Z' | 'a'..='z' => tokens.push(Token::new(TokenClass::Alphabet, c, line, col)),
             _ => {
-                if !t.is_ascii() {
-                    let error = format!(
-                        "Input code: {} is not ascii on line: {}, column: {}",
-                        t, line, col
-                    );
-                    return Err(super::Error::Tokenizer(error));
+                if !c.is_ascii() && !has_error {
+                    has_error = true;
+                    error_token = Token::new(TokenClass::UnknownChar, c, line, col);
                 }
-                tokens.push(Token::new(
-                    TokenClass::UnknownChar,
-                    format!("{}", t),
-                    line,
-                    col,
-                ))
+                tokens.push(Token::new(TokenClass::UnknownChar, c, line, col))
             }
         }
         col += 1;

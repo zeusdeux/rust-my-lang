@@ -55,7 +55,7 @@ fn main() -> Result<(), ReplError> {
             EvaluationResult::Output(output) => {
                 match output {
                     Err(err) => {
-                        println!("Something went wrong! {}", err);
+                        println!("{}", err);
                     }
                     Ok(o) => {
                         println!("{}", o);
