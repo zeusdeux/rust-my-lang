@@ -48,8 +48,8 @@ fn main() -> Result<(), ReplError> {
     println!("Hi! 👋🏼\nType ? for help.");
 
     loop {
-        let input = read(&repl_input_mode);
-        let output = eval(input?);
+        let input = read(&repl_input_mode)?;
+        let output = eval(input);
 
         match output {
             EvaluationResult::Output(output) => {
