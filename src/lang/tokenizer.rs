@@ -6,6 +6,13 @@ enum TokenClass {
     Alphabet,
     NewLine,
     WhiteSpace,
+    OpenParen,
+    CloseParen,
+    Plus,
+    Dash,
+    Asterisk,
+    ForwardSlash,
+    Dot,
     UnknownChar,
 }
 
@@ -16,6 +23,13 @@ impl fmt::Display for TokenClass {
             TokenClass::Alphabet => write!(f, "Alphabet"),
             TokenClass::NewLine => write!(f, "NewLine"),
             TokenClass::WhiteSpace => write!(f, "WhiteSpace"),
+            TokenClass::OpenParen => write!(f, "OpenParen"),
+            TokenClass::CloseParen => write!(f, "CloseParen"),
+            TokenClass::Plus => write!(f, "Plus"),
+            TokenClass::Dash => write!(f, "Dash"),
+            TokenClass::Asterisk => write!(f, "Asterisk"),
+            TokenClass::ForwardSlash => write!(f, "ForwardSlash"),
+            TokenClass::Dot => write!(f, "Dot"),
             TokenClass::UnknownChar => write!(f, "UnknownChar"),
         }
     }
@@ -30,7 +44,7 @@ pub struct Token {
 }
 
 impl Token {
-    fn new(class: TokenClass, val: char, line: usize, col: usize) -> Token {
+    fn new(class: TokenClass, val: char, line: usize, col: usize) -> Self {
         Token {
             class,
             value: val,
@@ -66,14 +80,17 @@ pub fn tokenize(input: &str) -> super::Result<Vec<Token>> {
     for c in input.chars() {
         match c {
             '\n' => {
+                // if an error was encountered during tokenizing, we still tokenize till the end of that line
+                // so that we can print the full line on screen for user with an ascii drawn cursor pointing
+                // to the column the error was on (like how rustc does with -----^)
                 if has_error {
                     let error_message: String = format!(
                         "Input {} is not ascii\n{}\n",
                         error_token.value,
                         tokens
                             .into_iter()
-                            .filter(|t| t.line == error_token.line)
-                            .map(|t| t.value)
+                            .filter(|t| t.line == error_token.line) // print only the line with the error
+                            .map(|t| t.value) // get the char out of the Token struct
                             .collect::<String>(),
                     );
                     return Err(super::Error::new(
@@ -94,6 +111,13 @@ pub fn tokenize(input: &str) -> super::Result<Vec<Token>> {
             }
             '0'..='9' => tokens.push(Token::new(TokenClass::Number, c, line, col)),
             'A'..='Z' | 'a'..='z' => tokens.push(Token::new(TokenClass::Alphabet, c, line, col)),
+            '(' => tokens.push(Token::new(TokenClass::OpenParen, c, line, col)),
+            ')' => tokens.push(Token::new(TokenClass::CloseParen, c, line, col)),
+            '+' => tokens.push(Token::new(TokenClass::Plus, c, line, col)),
+            '-' => tokens.push(Token::new(TokenClass::Dash, c, line, col)),
+            '*' => tokens.push(Token::new(TokenClass::Asterisk, c, line, col)),
+            '/' => tokens.push(Token::new(TokenClass::ForwardSlash, c, line, col)),
+            '.' => tokens.push(Token::new(TokenClass::Dot, c, line, col)),
             _ => {
                 if !c.is_ascii() && !has_error {
                     has_error = true;
