@@ -49,7 +49,7 @@ fn main() -> Result<(), ReplError> {
 
     loop {
         let input = read(&repl_input_mode)?;
-        let output = eval(input);
+        let output = eval(&input);
 
         match output {
             EvaluationResult::Output(output) => {
@@ -99,8 +99,8 @@ fn read(repl_input_mode: &SupportedReplInputMode) -> Result<String, ReplError> {
     }
 }
 
-fn eval(input: String) -> EvaluationResult {
-    match &input[..] {
+fn eval(input: &str) -> EvaluationResult {
+    match input {
         ".m\n" => EvaluationResult::ReplInputMode(SupportedReplInputMode::MultiLine),
         ".e\n" => EvaluationResult::ReplRunning(false),
         ".q\n" => EvaluationResult::ReplRunning(false),
