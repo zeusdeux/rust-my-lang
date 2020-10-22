@@ -48,7 +48,6 @@ impl Token {
         Token {
             class,
             value: val,
-            // value: char::from(val),
             line,
             col,
         }
@@ -73,7 +72,7 @@ pub fn tokenize(input: &str) -> super::Result<Vec<Token>> {
     let mut line: usize = 1;
     let mut col: usize = 1;
     let mut has_error = false;
-    let mut error_token: Token = Token::new(TokenClass::UnknownChar, ' ', line, col);
+    let mut error_token: Token = Token::new(TokenClass::UnknownChar, '🔥', line, col);
 
     // we iterate over unicode scalar values but only support ascii
     // we do this as we want to print the unicode somewhat correct on error
